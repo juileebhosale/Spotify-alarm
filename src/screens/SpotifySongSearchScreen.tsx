@@ -66,9 +66,12 @@ export default function SpotifySongSearchScreen({ onDone, onBack }: Props) {
         previewUrl = await getTrackPreviewUrl(trackId, selectedTrack.name, selectedTrack.artists) ?? undefined;
       }
       let localPreviewUri: string | undefined;
+      let notificationSoundFile: string | undefined;
       if (previewUrl) {
         try {
-          localPreviewUri = (await cachePreview(selectedTrack.uri, previewUrl)) ?? undefined;
+          const cached = await cachePreview(selectedTrack.uri, previewUrl);
+          localPreviewUri = cached?.localPreviewUri;
+          notificationSoundFile = cached?.notificationSoundFile;
         } catch {
           // Cache failed — alarm will stream the preview URL at fire time instead.
         }
@@ -80,6 +83,7 @@ export default function SpotifySongSearchScreen({ onDone, onBack }: Props) {
         trackArtist: selectedTrack.artists[0]?.name,
         previewUrl,
         localPreviewUri,
+        notificationSoundFile,
       });
     } catch {
       // Preview URL fetch failed — save the track without audio; alarm will use WAV fallback.

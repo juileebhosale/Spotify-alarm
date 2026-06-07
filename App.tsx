@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useSpotifyAuth } from './src/auth/spotifyAuth';
-import { Alarm, AlarmSound } from './src/alarm/alarmStore';
+import { Alarm, AlarmSound, loadAlarms } from './src/alarm/alarmStore';
 import {
   requestNotificationPermissions,
   rescheduleAll,
@@ -40,15 +40,24 @@ export default function App() {
     requestNotificationPermissions();
     rescheduleAll();
 
-    // Fires when notification arrives while app is foregrounded OR backgrounded (not killed).
+    // Fires when notification arrives while app is foregrounded (not backgrounded or killed).
     // This is what auto-plays the alarm song without any user tap.
     notifListener.current = Notifications.addNotificationReceivedListener(async (notification) => {
-      const alarmId = notification.request.content.data?.alarmId as string | undefined;
-      if (!alarmId) return;
-      const { loadAlarms } = await import('./src/alarm/alarmStore');
+      const data = notification.request.content.data;
+      console.log('[Alarm] Notification received, data:', JSON.stringify(data));
+      const alarmId = data?.alarmId as string | undefined;
+      if (!alarmId) {
+        console.log('[Alarm] No alarmId in notification — skipping playback');
+        return;
+      }
       const alarms = await loadAlarms();
+      console.log('[Alarm] Alarms in storage:', alarms.length, '| looking for id:', alarmId);
       const alarm = alarms.find((a) => a.id === alarmId);
-      if (alarm) await triggerAlarmPlayback(alarm);
+      if (!alarm) {
+        console.log('[Alarm] Alarm not found in storage — skipping playback');
+        return;
+      }
+      await triggerAlarmPlayback(alarm);
     });
 
     // Fires when user taps the notification — stop any playing audio then handle response.

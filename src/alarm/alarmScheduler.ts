@@ -35,29 +35,17 @@ async function playAlarmAudio(source: string | number): Promise<void> {
 }
 
 // Show notifications even when app is foregrounded.
-// Suppress the system alarm.wav when the alarm has a Spotify preview (app will play it instead).
-// Fall back to system sound when there is no preview (app is killed or no preview URL stored).
+// Always suppress system sound here — expo-av handles audio when the app is alive.
+// When the app is killed this handler never runs; iOS plays the notification's sound field
+// directly (either the cached Library/Sounds preview file or alarm.wav as fallback).
 Notifications.setNotificationHandler({
-  handleNotification: async (notification) => {
-    const alarmId = notification.request.content.data?.alarmId as string | undefined;
-    let hasPreview = false;
-    if (alarmId) {
-      const alarms = await loadAlarms();
-      const alarm = alarms.find((a) => a.id === alarmId);
-      hasPreview = !!(
-        alarm &&
-        alarm.sound.type !== 'none' &&
-        (alarm.sound.localPreviewUri || alarm.sound.previewUrl || alarm.sound.type === 'spotify_surprise')
-      );
-    }
-    return {
-      shouldShowAlert: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: !hasPreview,  // let the app play Spotify preview; WAV only as fallback
-      shouldSetBadge: false,
-    };
-  },
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
 });
 
 export async function requestNotificationPermissions(): Promise<boolean> {
@@ -194,6 +182,7 @@ export async function handleNotificationResponse(
 }
 
 export async function triggerAlarmPlayback(alarm: Alarm): Promise<void> {
+  console.log('[Alarm] triggerAlarmPlayback sound:', JSON.stringify(alarm.sound));
   if (alarm.sound.type === 'none') return;
 
   // spotify_track: play cached local file, or stream the preview URL directly.
@@ -254,7 +243,9 @@ function buildContent(alarm: Alarm): Notifications.NotificationContentInput {
     body: soundDesc ? `Tap to play: ${soundDesc}` : 'Time to wake up!',
     data: { alarmId: alarm.id },
     categoryIdentifier: alarm.snooze ? 'alarm_snooze' : 'alarm',
-    sound: 'alarm.wav',
+    // Use the cached Library/Sounds file so iOS plays the Spotify preview when the app is killed.
+    // Falls back to alarm.wav if no preview was cached (e.g. spotify_surprise, or cache failed).
+    sound: alarm.sound.notificationSoundFile ?? 'alarm.wav',
   };
 }
 

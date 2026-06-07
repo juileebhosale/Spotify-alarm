@@ -5,8 +5,9 @@ export interface AlarmSound {
   trackUri?: string;
   trackName?: string;
   trackArtist?: string;
-  previewUrl?: string;      // Spotify 30s preview MP3 URL
-  localPreviewUri?: string; // Local cached file path (file://...)
+  previewUrl?: string;             // Spotify 30s preview MP3 URL
+  localPreviewUri?: string;        // file:// URI for expo-av playback when app is alive
+  notificationSoundFile?: string;  // filename in Library/Sounds/ (e.g. 'ap_abc123.mp3') — iOS plays this when app is killed
 }
 
 export interface Alarm {
